@@ -26,8 +26,10 @@
 
 - Cell
 
-        It represents all the cells in the grid, its has multiple attributes. This agents contains the boxes and gives directions to the Robots.
+          It represents all the cells in the grid, its has multiple attributes. This agents
+          contains the boxes and gives directions to the Robots.
 
 - Robot
 
-        The robots are able to pick up the boxes and place them in a stack, at the same it this agent is able to move in the grid.
+          The robots are able to pick up the boxes and place them in a stack, at the
+          same it this agent is able to move in the grid.
