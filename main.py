@@ -20,7 +20,7 @@ import random
 
 from agents import Cell, Robot
 
-'''
+
 def get_grid(model):
     grid = np.zeros((model.grid.width, model.grid.height))
     for cell in model.grid.coord_iter():
@@ -34,8 +34,8 @@ def get_grid(model):
             else:
                 grid[x][y] = 6
     return grid
-'''
 
+'''
 def get_grid(model):
     grid = np.zeros((model.grid.width, model.grid.height))
     for cell in model.grid.coord_iter():
@@ -46,14 +46,13 @@ def get_grid(model):
                 grid[x][y] = 8
             else:
                 grid[x][y] = obj.num_cajas
-                
-                
         elif isinstance(obj, Robot):
             if obj.caja == 0:
                 grid[x][y] = 7
             else:
                 grid[x][y] = 6
     return grid
+'''
 
 class Room(Model):
     def __init__ (self, width, height, num_cajas):
@@ -62,7 +61,7 @@ class Room(Model):
         self.schedule = SimultaneousActivation(self)
         self.width = width
         self.height = height
-        self.stacks = []
+        self.stacks = [(self.width-1, 0)]
 
         # Create cells
         for x in range(width):
@@ -393,7 +392,7 @@ class Room(Model):
         
         
         # Create robot
-        for i in range(1, 21):
+        for i in range(1, 6):
             while True:
                 x = self.random.randrange(self.grid.width)
                 y = self.random.randrange(self.grid.height)
@@ -420,31 +419,63 @@ class Room(Model):
         # Takes a step and collect data.
         self.datacollector.collect(self)
         self.schedule.step()
+    
+    def ready(self):
+        contador = 0
+        for (content, (x, y)) in self.grid.coord_iter():
+            for obj in content:
+                if isinstance(obj, Robot):
+                    if obj.caja > 0:
+                        return True
+                elif isinstance(obj, Cell):
+                    if obj.num_cajas < 5 and obj.num_cajas > 0:
+                        contador += 1
+            
+            if contador > 1:
+                return True
+        
+        return False
+
+    def getMovimientos(self):
+        movimientos = 0
+        for (content, (x, y)) in self.grid.coord_iter():
+            for obj in content:
+                if isinstance(obj, Robot):
+                    movimientos += obj.num_movimientos
+        return movimientos
+                
 
 if __name__ == "__main__":
-    #w = int(input("Ingrese el ancho de la habitación: "))
-    #h = int(input("Ingrese el alto de la habitación: "))
-    #k = int(input("Ingrese el número de cajas: "))
-    #t = float(input("Ingrese el tiempo limite: "))
+    w = int(input("Ingrese el ancho de la habitación (5 o mas): "))
+    while w < 5:
+        w = int(input("Ingrese el ancho de la habitación (5 o mas): "))
 
-    w = 17
-    h = 17
-    k = int((w*h)*.7)
-    t = 2
+    h = int(input("Ingrese el alto de la habitación(5 o mas): "))
+    while h < 5:
+        h = int(input("Ingrese el alto de la habitación(5 o mas): "))
+
+    k = int(input("Ingrese el número de cajas: "))
+    t = float(input("Ingrese el tiempo limite: "))
 
     model = Room(w, h, k)
     start_time = time.time()
 
-    while ((time.time() - start_time) < t):
+    #model.step()
+
+    
+    while ((time.time() - start_time) < t) and model.ready():
         model.step()
+    
 
     execution_time = str(datetime.timedelta(seconds=(time.time() - start_time)))
     print("Tiempo de ejecución: " + execution_time)
+    print("Movimientos: " + str(model.getMovimientos()))
 
     all_grid = model.datacollector.get_model_vars_dataframe()
 
-    cmap = matplotlib.colors.ListedColormap([(1, 1, 1),(0.88, 0.88, 0.88), (0.76,0.76,0.76), (0.64, 0.64, 0.64), (0.52, 0.52, 0.52), (0.4, 0.4, 0.4),(0.094, 0.18, 0.5), (0.094, 0.18, 0.9), (0,0,0)])
-    #cmap = matplotlib.colors.ListedColormap([(1,1,1),(0.8,0.8,0.8),(0.6,0.6,0.6),(0.4,0.4,0.4),(0.2,0.2,0.2),(0,0,0),(0.094, 0.18, 0.5), (0.094, 0.18, 0.9)])
+    #cmap = matplotlib.colors.ListedColormap([(1,1,1),(0, 1, 0),(0, 0.784, 0), (0,0.588,0), (0, 0.392, 0), (0, 0.196, 0),(0.094, 0.18, 0.5), (0.094, 0.18, 0.9), (0.835,0.835,0.835)])
+    cmap = matplotlib.colors.ListedColormap([(1,1,1),(0.8,0.8,0.8),(0.6,0.6,0.6),(0.4,0.4,0.4),(0.2,0.2,0.2),(0,0,0),(0.094, 0.18, 0.5), (0.094, 0.18, 0.9)])
+
 
     fig, axs = plt.subplots(figsize=(7,7))
     axs.set_xticks([])
@@ -455,7 +486,6 @@ if __name__ == "__main__":
         patch.set_data(all_grid.iloc[i][0])
 
     anim = animation.FuncAnimation(fig, animate, frames=len(all_grid))
-    #anim = animation.FuncAnimation(fig, animate, frames=500)
 
     writergif = animation.PillowWriter(fps=20)
     anim.save('animation.gif', writer=writergif)

@@ -1,13 +1,14 @@
 from mesa import Agent
 
 class Robot(Agent):
-    def __init__(self, unique_id, model, pos, init_stack):
+    def __init__(self, unique_id, model, pos, initial):
         super().__init__(unique_id, model)
         self.pos = pos
         self.next_pos = pos
         self.caja = 0 # 0 = no caja, 1 = caja
-        self.stacks = [init_stack]
         self.trigger = False
+        self.stacks = [initial]
+        self.num_movimientos = 0
     
     def step(self):
         cell = self.model.grid.get_cell_list_contents(self.pos)
@@ -15,21 +16,18 @@ class Robot(Agent):
         if self.trigger:
             neighbors = self.model.grid.get_neighborhood(self.pos, moore=False, include_center=False)
 
-            op1 = None
             for neighbor in neighbors:
                 test = self.model.grid.get_cell_list_contents(neighbor)
                 temp = None
                 for item in test:
                     if isinstance(item, Cell):
-                        temp = item
-                        break
-                if temp.pos not in self.stacks and not temp.road:
-                    temp.num_cajas += 1
-                    self.caja = 0
-                    self.trigger = False
-                    self.stacks.append(temp.pos)
-                    break
-
+                        if item.pos not in self.stacks and not item.road:
+                            self.trigger = False
+                            self.stacks.append(item.pos)
+                            item.stack = True
+            
+            
+        
         if self.caja == 1:
             neighbors = self.model.grid.get_neighborhood(self.pos, moore=False, include_center=False)
             op1 = None
@@ -39,13 +37,25 @@ class Robot(Agent):
         
             if op1 != None:
                 # si el stack ya tiene 5 cajas agregar al stack la siguiente celda que no sea calle
+                '''
+                content = self.model.grid.get_cell_list_contents(op1)
+                temp = None
+                for item in content:
+                    if isinstance(item, Cell):
+                        item.num_cajas += 1
+                        self.caja = 0
+                '''
                 content = self.model.grid.get_cell_list_contents(op1)
                 temp = None
                 for item in content:
                     if isinstance(item, Cell):
                         temp = item
                         break
-                if temp.num_cajas > 4:
+                
+                if temp.num_cajas < 5:
+                    temp.num_cajas += 1
+                    self.caja = 0
+                else:
                     self.trigger = True
                     
                     cell = self.model.grid.get_cell_list_contents(self.pos)
@@ -56,6 +66,7 @@ class Robot(Agent):
                         if isinstance(c, Cell):
                             next = (self.pos[0]+c.dir[0], self.pos[1]+c.dir[1])
                             current = c
+                            break
 
                     cell = self.model.grid.get_cell_list_contents(next)
                     temp2 = None
@@ -69,9 +80,8 @@ class Robot(Agent):
                             current.visited = False
                             self.next_pos = next
                             temp2.visited = True
-                else:
-                    temp.num_cajas += 1
-                    self.caja = 0
+                    
+                
             else:
                 next = None
                 for c in cell:
@@ -182,7 +192,7 @@ class Robot(Agent):
                             temp = c
                             break
                     
-                    if temp.num_cajas > 0 and temp.pos not in self.stacks:
+                    if temp.num_cajas > 0 and temp.pos not in self.stacks and not temp.stack:
                         self.caja = 1
                         temp.num_cajas -= 1
                         break
@@ -209,7 +219,7 @@ class Robot(Agent):
                             
                         self.next_pos = now
             else:
-                if temp not in self.stacks:
+                if temp.pos not in self.stacks and not temp.stack:
                     self.caja = 1
                     temp.num_cajas -= 1
                 
@@ -218,6 +228,7 @@ class Robot(Agent):
         if (self.pos != self.next_pos):
             self.model.grid.move_agent(self, self.next_pos)
             self.pos = self.next_pos
+            self.num_movimientos += 1
 
 class Cell(Agent):
     def __init__(self, unique_id, model, num_cajas, pos):
@@ -227,7 +238,10 @@ class Cell(Agent):
         self.pos = pos
         self.visited = False
         self.road = False
+        self.stack = False
 
+        if (self.pos[0] == self.model.width-1 and self.pos[1] == 0):
+            self.stack = True
 
         if (self.pos[1] == 0):
             self.dir = (0,1)
